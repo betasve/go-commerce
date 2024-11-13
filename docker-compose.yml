@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  gc-auth:
+    build: ./services/auth
+    environment:
+      - APP_PORT=${AUTH_APP_PORT:-8001}
+    ports:
+      - "${AUTH_APP_PORT:-8001}:${AUTH_APP_PORT:-8001}"
+
+  gc-inventory:
+    build: ./services/inventory
+    environment:
+      - APP_PORT=${INVENTORY_APP_PORT:-8002}
+    ports:
+      - "${INVENTORY_APP_PORT:-8002}:${INVENTORY_APP_PORT:-8002}"
+
+  gc-notification:
+    build: ./services/notification
+    environment:
+      - APP_PORT=${NOTIFICATION_APP_PORT:-8003}
+    ports:
+      - "${NOTIFICATION_APP_PORT:-8003}:${NOTIFICATION_APP_PORT:-8003}"
+
+  gc-order:
+    build: ./services/order
+    environment:
+      - APP_PORT=${ORDER_APP_PORT:-8004}
+    ports:
+      - "${ORDER_APP_PORT:-8004}:${ORDER_APP_PORT:-8004}"
+
+  gc-product:
+    build: ./services/product
+    environment:
+      - APP_PORT=${PRODUCT_APP_PORT:-8005}
+    ports:
+      - "${PRODUCT_APP_PORT:-8005}:${PRODUCT_APP_PORT:-8005}"

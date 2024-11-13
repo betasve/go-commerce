@@ -1,0 +1,4 @@
+# .gitignore
+/services/*/vendor/
+/services/*/*.log
+/services/*/*.exe
