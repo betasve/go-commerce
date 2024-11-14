@@ -5,33 +5,101 @@ services:
     build: ./services/auth
     environment:
       - APP_PORT=${AUTH_APP_PORT:-8001}
+      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/auth
+      - KAFKA_BROKER=kafka:9092
     ports:
       - "${AUTH_APP_PORT:-8001}:${AUTH_APP_PORT:-8001}"
+    depends_on:
+      - db
+      - kafka
 
   gc-inventory:
     build: ./services/inventory
     environment:
       - APP_PORT=${INVENTORY_APP_PORT:-8002}
+      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/inventory
+      - KAFKA_BROKER=kafka:9092
     ports:
       - "${INVENTORY_APP_PORT:-8002}:${INVENTORY_APP_PORT:-8002}"
+    depends_on:
+      - db
+      - kafka
 
   gc-notification:
     build: ./services/notification
     environment:
       - APP_PORT=${NOTIFICATION_APP_PORT:-8003}
+      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/notification
+      - KAFKA_BROKER=kafka:9092
     ports:
       - "${NOTIFICATION_APP_PORT:-8003}:${NOTIFICATION_APP_PORT:-8003}"
+    depends_on:
+      - db
+      - kafka
 
   gc-order:
     build: ./services/order
     environment:
       - APP_PORT=${ORDER_APP_PORT:-8004}
+      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/order
+      - KAFKA_BROKER=kafka:9092
     ports:
       - "${ORDER_APP_PORT:-8004}:${ORDER_APP_PORT:-8004}"
+    depends_on:
+      - db
+      - kafka
 
   gc-product:
     build: ./services/product
     environment:
       - APP_PORT=${PRODUCT_APP_PORT:-8005}
+      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/product
+      - KAFKA_BROKER=kafka:9092
     ports:
       - "${PRODUCT_APP_PORT:-8005}:${PRODUCT_APP_PORT:-8005}"
+    depends_on:
+      - db
+      - kafka
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: "${DB_USER:-gcuser}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-gcpassword}"
+      POSTGRES_DB: "${DB_NAME:-gc_db}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    environment:
+      KAFKA_BROKER_CONNECT: "kafka:9092"
+    ports:
+      - "9000:9000"
+    depends_on:
+      - kafka
+
+volumes:
+  postgres_data:
