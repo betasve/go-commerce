@@ -7,10 +7,8 @@ Objective: Set up the foundational architecture for the microservice environment
     Tasks:
         Define the microservices architecture (e.g., product, order, user, inventory).
         Set up version control with Git and initialize a GitHub repository.
-        > Create Docker configuration for each service to support isolated environments.
-        Set up a message queue system (e.g., Kafka) to manage inter-service communication.
-        Define API contracts using OpenAPI (Swagger) or gRPC for service communication.
-        Implement basic CI/CD pipeline with GitHub Actions to automate testing and deployment.
+        Create Docker configuration for each service to support isolated environments.
+        > Set up a message queue system (e.g., Kafka) to manage inter-service communication.
 
 ### Milestone 2: User and Authentication Service
 
@@ -23,6 +21,8 @@ Objective: Develop a service that manages user registration, authentication, and
         Implement role-based access control (RBAC) for different user types (e.g., admin, customer).
         Develop unit and integration tests for the authentication service.
         Document the user and authentication service API.
+        Define API contracts using OpenAPI (Swagger) or gRPC for service communication.
+        Implement basic CI/CD pipeline with GitHub Actions to automate testing and deployment.
 
 ### Milestone 3: Product and Inventory Service
 
