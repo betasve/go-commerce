@@ -5,7 +5,7 @@ services:
     build: ./services/auth
     environment:
       - APP_PORT=${AUTH_APP_PORT:-8001}
-      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/auth
+      - DATABASE_URL=postgres://gcuser:gcpassword@db:5432/auth
       - KAFKA_BROKER=kafka:9092
     ports:
       - "${AUTH_APP_PORT:-8001}:${AUTH_APP_PORT:-8001}"
@@ -17,7 +17,7 @@ services:
     build: ./services/inventory
     environment:
       - APP_PORT=${INVENTORY_APP_PORT:-8002}
-      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/inventory
+      - DATABASE_URL=postgres://gcuser:gcpassword@db:5432/inventory
       - KAFKA_BROKER=kafka:9092
     ports:
       - "${INVENTORY_APP_PORT:-8002}:${INVENTORY_APP_PORT:-8002}"
@@ -29,7 +29,7 @@ services:
     build: ./services/notification
     environment:
       - APP_PORT=${NOTIFICATION_APP_PORT:-8003}
-      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/notification
+      - DATABASE_URL=postgres://gcuser:gcpassword@db:5432/notification
       - KAFKA_BROKER=kafka:9092
     ports:
       - "${NOTIFICATION_APP_PORT:-8003}:${NOTIFICATION_APP_PORT:-8003}"
@@ -41,7 +41,7 @@ services:
     build: ./services/order
     environment:
       - APP_PORT=${ORDER_APP_PORT:-8004}
-      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/order
+      - DATABASE_URL=postgres://gcuser:gcpassword@db:5432/order
       - KAFKA_BROKER=kafka:9092
     ports:
       - "${ORDER_APP_PORT:-8004}:${ORDER_APP_PORT:-8004}"
@@ -53,7 +53,7 @@ services:
     build: ./services/product
     environment:
       - APP_PORT=${PRODUCT_APP_PORT:-8005}
-      - DATABASE_URL=postgres://gcuser:gcpassword@gc_db:5432/product
+      - DATABASE_URL=postgres://gcuser:gcpassword@db:5432/product
       - KAFKA_BROKER=kafka:9092
     ports:
       - "${PRODUCT_APP_PORT:-8005}:${PRODUCT_APP_PORT:-8005}"

@@ -2,3 +2,5 @@
 /services/*/vendor/
 /services/*/*.log
 /services/*/*.exe
+/services/.env
+.env
