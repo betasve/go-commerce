@@ -42,7 +42,7 @@ func connectDb() *gorm.DB {
 
 func main() {
 	migrateDb()
-	db := connectDb()
+	// db := connectDb()
 
 	router.Run()
 }
