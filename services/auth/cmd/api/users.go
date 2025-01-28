@@ -9,7 +9,20 @@ import (
 )
 
 func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "placeholder for creating a user")
+	var input struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+
+		return
+	}
+
+	fmt.Fprintf(w, "%+v\n", input)
 }
 
 func (app *application) showUserHandler(w http.ResponseWriter, r *http.Request) {
