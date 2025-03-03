@@ -2,9 +2,11 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/betasve/go-commerce/services/auth/internal/validator"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -21,18 +23,110 @@ type UserModel struct {
 }
 
 func (u UserModel) Insert(user *User) error {
-	return nil
+	query := `
+		INSERT INTO users (name, email, password)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at
+	`
+
+	hashedPassword, err := hashPassword(user.Password)
+	if err != nil {
+		return err
+	}
+
+	args := []interface{}{
+		user.Name,
+		user.Email,
+		hashedPassword,
+	}
+
+	return u.DB.QueryRow(query, args...).Scan(&user.ID, &user.CreatedAt)
 }
 
 func (u UserModel) Get(id int64) (*User, error) {
-	return nil, nil
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	query := `
+		SELECT id, created_at, updated_at, name, email
+		FROM users
+		WHERE id = $1
+	`
+
+	var user User
+
+	err := u.DB.QueryRow(query, id).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.Name,
+		&user.Email,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
 }
 
 func (u UserModel) Update(user *User) error {
+	query := `
+		UPDATE users
+		SET name = $1, email = $2, password = $3
+		WHERE id = $4
+	`
+
+	hashedPassword, err := hashPassword(user.Password)
+	if err != nil {
+		return err
+	}
+
+	args := []interface{}{
+		user.Name,
+		user.Email,
+		hashedPassword,
+		user.ID,
+	}
+
+	_, err = u.DB.Exec(query, args...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (u UserModel) Delete(id int64) error {
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	query := `
+		DELETE FROM users
+		WHERE id = $1
+	`
+
+	result, err := u.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
 }
 
@@ -80,4 +174,19 @@ func ValidateUser(v *validator.Validator, u *User) {
 		"email",
 		"does not look like a valid email",
 	)
+}
+
+func hashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hash), nil
+}
+
+func checkPassword(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+
+	return err == nil
 }

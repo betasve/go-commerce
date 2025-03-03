@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Check if a parameter is provided
+if [ -z "$1" ]; then
+  echo "Usage: $0 <action>"
+  exit 1
+fi
+
+# Assign the first parameter to a variable
+action=$1
+
+# Define the base URL
+base_url="http://localhost:4000/v1"
+
+# Perform actions based on the parameter value
+case $action in
+  create-user)
+    email=$2
+    body="{\"email\":\"$2\",\"password\": \"pass123\",\"name\":\"Test User\"}"
+    curl -X POST "$base_url/users" -H "Content-Type: application/json" -d "$body"
+    ;;
+  delete-user)
+    id=$2
+    curl -X DELETE "$base_url/users/$id"
+    ;;
+  list-users)
+    curl -X GET "$base_url/users"
+    ;;
+  list-user)
+    id=$2
+    curl -X GET "$base_url/users/$id"
+    ;;
+  update-user-email)
+    id=$2
+    email=$3
+    body="{\"email\":\"$3\",\"password\": \"pass123\",\"name\":\"Test User\"}"
+    curl -X PUT -d "$body" "$base_url/users/$id"
+    ;;
+  *)
+    echo "Invalid action."
+    exit 1
+    ;;
+esac
+
