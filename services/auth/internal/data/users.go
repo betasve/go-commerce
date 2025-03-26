@@ -135,6 +135,17 @@ type MockUserModel struct {
 }
 
 func (u MockUserModel) Insert(user *User) error {
+	user.ID = 42
+	user.Name = "John Doe"
+	user.Email = "test_email@example.com"
+
+	t, err := time.Parse("2006-01-02 15:04:05", "2025-03-26 15:04:05")
+	if err != nil {
+		return err
+	}
+	user.CreatedAt = t
+	user.UpdatedAt = t
+
 	return nil
 }
 
