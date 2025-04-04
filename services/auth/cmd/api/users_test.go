@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/betasve/go-commerce/services/auth/internal/data"
+	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,7 +36,7 @@ func TestCreateUserHandler(t *testing.T) {
 		}
 
 		req := httptest.NewRequest(
-			http.MethodGet,
+			http.MethodPost,
 			"/test/url",
 			bytes.NewReader([]byte(tc.reqBody)),
 		)
@@ -43,6 +45,127 @@ func TestCreateUserHandler(t *testing.T) {
 
 		assert.Equal(t, tc.expectedStatusCode, rr.Result().StatusCode)
 		assert.Equal(t, tc.expectedLocation, rr.Header().Get("Location"))
+		assert.Equal(
+			t,
+			tc.expectedResponseBody,
+			strings.TrimSpace(rr.Body.String()),
+		)
+	}
+}
+
+func TestShowUserHandler(t *testing.T) {
+	tests := []struct {
+		name                 string
+		userId               string
+		expectedStatusCode   int
+		expectedResponseBody string
+	}{
+		{"Error on invalid id", "abc", http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
+		{"Error on missing user id", "0", http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
+		{"Finds the user", "1", http.StatusOK, `{"user":{"id":42,"name":"John Doe","email":"test_email@example.com","password":"[FILTERED]","created_at":"2025-03-26T15:04:05Z","updated_at":"2025-03-26T15:04:05Z"}}`},
+	}
+
+	for _, tc := range tests {
+		rr := httptest.NewRecorder()
+
+		app := application{
+			models: data.NewMockModels(),
+		}
+
+		req := httptest.NewRequest(
+			http.MethodGet,
+			"/test/url",
+			bytes.NewReader([]byte("")),
+		)
+
+		params := httprouter.Params{httprouter.Param{Key: "id", Value: tc.userId}}
+		ctx := context.WithValue(req.Context(), httprouter.ParamsKey, params)
+		req = req.WithContext(ctx)
+
+		app.showUserHandler(rr, req)
+
+		assert.Equal(t, tc.expectedStatusCode, rr.Result().StatusCode)
+		assert.Equal(
+			t,
+			tc.expectedResponseBody,
+			strings.TrimSpace(rr.Body.String()),
+		)
+	}
+}
+
+func TestUpdateUserHandler(t *testing.T) {
+	tests := []struct {
+		name                 string
+		userId               string
+		userBody             string
+		expectedStatusCode   int
+		expectedResponseBody string
+	}{
+		{"Error on invalid id", "abc", `{"name": "Johny Do","email":"test@example.com","password":"NewPass123"}`, http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
+		{"Error on missing user id", "0", `{"name": "Johny Do","email":"test@example.com","password":"NewPass123"}`, http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
+		{"Updates the user", "1", `{"name": "Johny Do","email":"test@example.com","password":"NewPass123"}`, http.StatusOK, `{"user":{"id":42,"name":"Johny Do","email":"test@example.com","password":"[FILTERED]","created_at":"2025-03-26T15:04:05Z","updated_at":"2025-03-26T15:04:05Z"}}`},
+	}
+
+	for _, tc := range tests {
+		rr := httptest.NewRecorder()
+
+		app := application{
+			models: data.NewMockModels(),
+		}
+
+		req := httptest.NewRequest(
+			http.MethodPut,
+			"/test/url",
+			bytes.NewReader([]byte(tc.userBody)),
+		)
+
+		params := httprouter.Params{httprouter.Param{Key: "id", Value: tc.userId}}
+		ctx := context.WithValue(req.Context(), httprouter.ParamsKey, params)
+		req = req.WithContext(ctx)
+
+		app.updateUserHandler(rr, req)
+
+		assert.Equal(t, tc.expectedStatusCode, rr.Result().StatusCode)
+		assert.Equal(
+			t,
+			tc.expectedResponseBody,
+			strings.TrimSpace(rr.Body.String()),
+		)
+	}
+}
+
+func TestDeleteUserHandler(t *testing.T) {
+	tests := []struct {
+		name                 string
+		userId               string
+		expectedStatusCode   int
+		expectedResponseBody string
+	}{
+		{"Error on invalid id", "abc", http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
+		{"Error on missing user id", "0", http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
+		{"Updates the user", "1", http.StatusNoContent, `{}`},
+	}
+
+	for _, tc := range tests {
+		rr := httptest.NewRecorder()
+
+		app := application{
+			models: data.NewMockModels(),
+		}
+
+		req := httptest.NewRequest(
+			http.MethodPut,
+			"/test/url",
+			bytes.NewReader([]byte("")),
+		)
+
+		params := httprouter.Params{httprouter.Param{Key: "id", Value: tc.userId}}
+		ctx := context.WithValue(req.Context(), httprouter.ParamsKey, params)
+		req = req.WithContext(ctx)
+
+		app.deleteUserHandler(rr, req)
+
+		assert.Equal(t, tc.expectedStatusCode, rr.Result().StatusCode)
 		assert.Equal(
 			t,
 			tc.expectedResponseBody,
