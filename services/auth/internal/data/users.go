@@ -154,6 +154,7 @@ func (u MockUserModel) Get(id int64) (*User, error) {
 	user.ID = 42
 	user.Name = "John Doe"
 	user.Email = "test_email@example.com"
+	user.Password = "TestPassword321"
 
 	t, err := time.Parse("2006-01-02 15:04:05", "2025-03-26 15:04:05")
 	if err != nil {

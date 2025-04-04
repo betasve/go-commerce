@@ -104,6 +104,7 @@ func TestUpdateUserHandler(t *testing.T) {
 		{"Error on invalid id", "abc", `{"name": "Johny Do","email":"test@example.com","password":"NewPass123"}`, http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
 		{"Error on missing user id", "0", `{"name": "Johny Do","email":"test@example.com","password":"NewPass123"}`, http.StatusNotFound, `{"error":"the requested resource could not be found"}`},
 		{"Updates the user", "1", `{"name": "Johny Do","email":"test@example.com","password":"NewPass123"}`, http.StatusOK, `{"user":{"id":42,"name":"Johny Do","email":"test@example.com","password":"[FILTERED]","created_at":"2025-03-26T15:04:05Z","updated_at":"2025-03-26T15:04:05Z"}}`},
+		{"Partially updates the user", "1", `{"name": "Johny Do"}`, http.StatusOK, `{"user":{"id":42,"name":"Johny Do","email":"test_email@example.com","password":"[FILTERED]","created_at":"2025-03-26T15:04:05Z","updated_at":"2025-03-26T15:04:05Z"}}`},
 	}
 
 	for _, tc := range tests {
@@ -114,7 +115,7 @@ func TestUpdateUserHandler(t *testing.T) {
 		}
 
 		req := httptest.NewRequest(
-			http.MethodPut,
+			http.MethodPatch,
 			"/test/url",
 			bytes.NewReader([]byte(tc.userBody)),
 		)
