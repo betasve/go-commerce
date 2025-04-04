@@ -5,8 +5,13 @@ import (
 	"net/http"
 )
 
-func (app *application) logError(_ *http.Request, err error) {
-	app.logger.Println(err)
+func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
+	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
+}
+
+func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Request) {
+	message := "unable to update the record due to an edit conflict, please try again"
+	app.errorResponse(w, r, http.StatusConflict, message)
 }
 
 func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message interface{}) {
@@ -19,11 +24,12 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 	}
 }
 
-func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.logError(r, err)
+func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
+	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
+}
 
-	message := "the server encountered a problem and could not process your request"
-	app.errorResponse(w, r, http.StatusInternalServerError, message)
+func (app *application) logError(_ *http.Request, err error) {
+	app.logger.Println(err)
 }
 
 func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
@@ -38,10 +44,9 @@ func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.
 	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
 }
 
-func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
-}
+func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
+	app.logError(r, err)
 
-func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
-	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
+	message := "the server encountered a problem and could not process your request"
+	app.errorResponse(w, r, http.StatusInternalServerError, message)
 }

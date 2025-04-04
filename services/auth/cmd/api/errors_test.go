@@ -28,6 +28,21 @@ func TestLogError(t *testing.T) {
 	assert.Contains(t, rec.String(), "test error")
 }
 
+func TestEditConflictResponse(t *testing.T) {
+	rr := httptest.NewRecorder()
+	app := application{}
+	req := httptest.NewRequest(
+		http.MethodPatch,
+		"/test/url",
+		nil,
+	)
+
+	app.editConflictResponse(rr, req)
+
+	assert.Equal(t, http.StatusConflict, rr.Result().StatusCode)
+	assert.Equal(t, `{"error":"unable to update the record due to an edit conflict, please try again"}`, strings.TrimSpace(rr.Body.String()))
+}
+
 func TestErrorResponse(t *testing.T) {
 	rr := httptest.NewRecorder()
 	app := application{}

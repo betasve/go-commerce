@@ -80,7 +80,8 @@ func (u UserModel) Update(user *User) error {
 	query := `
 		UPDATE users
 		SET name = $1, email = $2, password = $3
-		WHERE id = $4
+		WHERE id = $4 AND updated_at = $5
+		RETURNING updated_at
 	`
 
 	hashedPassword, err := hashPassword(user.Password)
@@ -93,11 +94,17 @@ func (u UserModel) Update(user *User) error {
 		user.Email,
 		hashedPassword,
 		user.ID,
+		user.UpdatedAt,
 	}
 
-	_, err = u.DB.Exec(query, args...)
+	err = u.DB.QueryRow(query, args...).Scan(&user.UpdatedAt)
 	if err != nil {
-		return err
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
 	}
 
 	return nil
