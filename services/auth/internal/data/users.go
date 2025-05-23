@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -40,7 +41,10 @@ func (u UserModel) Insert(user *User) error {
 		hashedPassword,
 	}
 
-	return u.DB.QueryRow(query, args...).Scan(&user.ID, &user.CreatedAt)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return u.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreatedAt)
 }
 
 func (u UserModel) Get(id int64) (*User, error) {
@@ -49,14 +53,18 @@ func (u UserModel) Get(id int64) (*User, error) {
 	}
 
 	query := `
-		SELECT id, created_at, updated_at, name, email
+		SELECT pg_sleep(10), id, created_at, updated_at, name, email
 		FROM users
 		WHERE id = $1
 	`
 
 	var user User
 
-	err := u.DB.QueryRow(query, id).Scan(
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := u.DB.QueryRowContext(ctx, query, id).Scan(
+		&[]byte{},
 		&user.ID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -97,7 +105,10 @@ func (u UserModel) Update(user *User) error {
 		user.UpdatedAt,
 	}
 
-	err = u.DB.QueryRow(query, args...).Scan(&user.UpdatedAt)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err = u.DB.QueryRowContext(ctx, query, args...).Scan(&user.UpdatedAt)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -120,7 +131,10 @@ func (u UserModel) Delete(id int64) error {
 		WHERE id = $1
 	`
 
-	result, err := u.DB.Exec(query, id)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := u.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
