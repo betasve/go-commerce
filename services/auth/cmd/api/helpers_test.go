@@ -7,9 +7,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/betasve/go-commerce/services/auth/internal/validator"
 	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 )
@@ -116,6 +119,88 @@ func TestReadJSON(t *testing.T) {
 				jsn, err := json.Marshal(&outputUser)
 				assert.Equal(t, tc.expectErr, err)
 				assert.Equal(t, strings.TrimSpace(string(jsn)), tc.expectBody)
+			}
+		})
+	}
+}
+
+func TestReadString(t *testing.T) {
+	kv := url.Values{
+		"key1": {"value1"},
+	}
+	tests := []struct {
+		name       string
+		qs         url.Values
+		key        string
+		defaultVal string
+		expected   string
+	}{
+		{"Valid key", kv, "key1", "default value", "value1"},
+		{"Invalid key", kv, "key2", "default value", "default value"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			app := application{}
+			result := app.readString(tc.qs, tc.key, tc.defaultVal)
+			if tc.expected != result {
+				t.Errorf("Expected '%v', got '%v'", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestReadCSV(t *testing.T) {
+	kv := url.Values{"key1": {"value1"}}
+	kv2 := url.Values{"key1": {"value1,value2"}}
+	tests := []struct {
+		name       string
+		qs         url.Values
+		key        string
+		defaultVal []string
+		expected   []string
+	}{
+		{"Valid key with one value", kv, "key1", []string{"defval"}, []string{"value1"}},
+		{"Valid key with many values", kv2, "key1", []string{"defval"}, []string{"value1", "value2"}},
+		{"Invalid key", kv2, "key2", []string{"val1", "val2"}, []string{"val1", "val2"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			app := application{}
+			result := app.readCSV(tc.qs, tc.key, tc.defaultVal)
+			if !reflect.DeepEqual(tc.expected, result) {
+				t.Errorf("Expected '%v', got '%v'", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestReadInt(t *testing.T) {
+	tests := []struct {
+		name        string
+		qs          url.Values
+		key         string
+		defaultVal  int
+		validator   *validator.Validator
+		expected    int
+		expectedErr map[string]string
+	}{
+		{"Valid key with valid value", url.Values{"key1": {"2"}}, "key1", 0, validator.New(), 2, map[string]string{}},
+		{"Valid key with invalid value", url.Values{"key1": {"a"}}, "key1", 0, validator.New(), 0, map[string]string{"key1": "must be an integer value"}},
+		{"Invalid key", url.Values{"key1": {"2"}}, "key2", 0, validator.New(), 0, map[string]string{}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			app := application{}
+			result := app.readInt(tc.qs, tc.key, tc.defaultVal, tc.validator)
+			if result != tc.expected && !tc.validator.Valid() {
+				if tc.validator.Errors[tc.key] != tc.expectedErr[tc.key] {
+					t.Errorf("Expected '%v', got '%v'", tc.validator.Errors, tc.expectedErr)
+				} else {
+					t.Errorf("Expected '%v', got '%v'", tc.expected, result)
+				}
 			}
 		})
 	}

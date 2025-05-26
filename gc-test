@@ -24,7 +24,7 @@ case $action in
     curl -X DELETE "$base_url/users/$id"
     ;;
   list-users)
-    curl -X GET "$base_url/users"
+    curl -X GET "$base_url/users?$2"
     ;;
   list-user)
     id=$2

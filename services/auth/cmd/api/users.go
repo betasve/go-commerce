@@ -53,6 +53,41 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+func (app *application) listUsersHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Email string
+		Name  string
+		data.Filters
+	}
+
+	v := validator.New()
+	qs := r.URL.Query()
+
+	input.Email = app.readString(qs, "email", "")
+	input.Name = app.readString(qs, "name", "")
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+	input.Filters.SortSafeList = []string{"id", "email", "name", "created_at", "updated_at", "-id", "-email", "-name", "-created_at", "-updated_at"}
+
+	if data.ValidateFilters(v, input.Filters); v.Invalid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	users, err := app.models.Users.GetAll(input.Email, input.Name, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+}
+
 func (app *application) showUserHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil || id < 1 {

@@ -84,6 +84,50 @@ func (u UserModel) Get(id int64) (*User, error) {
 	return &user, nil
 }
 
+func (u UserModel) GetAll(email, name string, filters Filters) ([]*User, error) {
+	query := `
+		SELECT id, email, name, created_at, updated_at
+		FROM users
+		ORDER BY id
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := u.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	users := []*User{}
+
+	for rows.Next() {
+		var user User
+
+		err := rows.Scan(
+			&user.ID,
+			&user.Email,
+			&user.Name,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		users = append(users, &user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
 func (u UserModel) Update(user *User) error {
 	query := `
 		UPDATE users
@@ -187,6 +231,17 @@ func (u MockUserModel) Get(id int64) (*User, error) {
 	return user, nil
 }
 
+func (u MockUserModel) GetAll(email, name string, filters Filters) ([]*User, error) {
+	t, err := time.Parse("2006-01-02 15:04:05", "2025-03-26 15:04:05")
+	if err != nil {
+		return nil, err
+	}
+
+	return []*User{
+		{ID: 1, Email: "test@example.com", Name: "John Doe", CreatedAt: t, UpdatedAt: t},
+		{ID: 1, Email: "test2@example.com", Name: "Jill Doe", CreatedAt: t, UpdatedAt: t},
+	}, nil
+}
 func (u MockUserModel) Update(user *User) error {
 	return nil
 }
