@@ -88,13 +88,15 @@ func (u UserModel) GetAll(email, name string, filters Filters) ([]*User, error) 
 	query := `
 		SELECT id, email, name, created_at, updated_at
 		FROM users
+		WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		AND (LOWER(email) = LOWER($2) OR $2 = '')
 		ORDER BY id
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := u.DB.QueryContext(ctx, query)
+	rows, err := u.DB.QueryContext(ctx, query, name, email)
 	if err != nil {
 		return nil, err
 	}
