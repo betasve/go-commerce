@@ -75,13 +75,13 @@ func (app *application) listUsersHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	users, err := app.models.Users.GetAll(input.Email, input.Name, input.Filters)
+	users, metadata, err := app.models.Users.GetAll(input.Email, input.Name, input.Filters)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"users": users}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"users": users, "metadata": metadata}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return

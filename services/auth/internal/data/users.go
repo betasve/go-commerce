@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/betasve/go-commerce/services/auth/internal/validator"
@@ -84,31 +85,33 @@ func (u UserModel) Get(id int64) (*User, error) {
 	return &user, nil
 }
 
-func (u UserModel) GetAll(email, name string, filters Filters) ([]*User, error) {
-	query := `
-		SELECT id, email, name, created_at, updated_at
+func (u UserModel) GetAll(email, name string, filters Filters) ([]*User, Metadata, error) {
+	query := fmt.Sprintf(`
+		SELECT count(*) OVER(), id, email, name, created_at, updated_at
 		FROM users
 		WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1) OR $1 = '')
 		AND (LOWER(email) = LOWER($2) OR $2 = '')
-		ORDER BY id
-	`
+		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := u.DB.QueryContext(ctx, query, name, email)
+	rows, err := u.DB.QueryContext(ctx, query, name, email, filters.limit(), filters.offset())
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
 	defer rows.Close()
 
+	totalRecords := 0
 	users := []*User{}
 
 	for rows.Next() {
 		var user User
 
 		err := rows.Scan(
+			&totalRecords,
 			&user.ID,
 			&user.Email,
 			&user.Name,
@@ -117,17 +120,19 @@ func (u UserModel) GetAll(email, name string, filters Filters) ([]*User, error) 
 		)
 
 		if err != nil {
-			return nil, err
+			return nil, Metadata{}, err
 		}
 
 		users = append(users, &user)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
-	return users, nil
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+
+	return users, metadata, nil
 }
 
 func (u UserModel) Update(user *User) error {
@@ -233,17 +238,18 @@ func (u MockUserModel) Get(id int64) (*User, error) {
 	return user, nil
 }
 
-func (u MockUserModel) GetAll(email, name string, filters Filters) ([]*User, error) {
+func (u MockUserModel) GetAll(email, name string, filters Filters) ([]*User, Metadata, error) {
 	t, err := time.Parse("2006-01-02 15:04:05", "2025-03-26 15:04:05")
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
 	return []*User{
 		{ID: 1, Email: "test@example.com", Name: "John Doe", CreatedAt: t, UpdatedAt: t},
 		{ID: 1, Email: "test2@example.com", Name: "Jill Doe", CreatedAt: t, UpdatedAt: t},
-	}, nil
+	}, Metadata{1, 20, 1, 2, 40}, nil
 }
+
 func (u MockUserModel) Update(user *User) error {
 	return nil
 }

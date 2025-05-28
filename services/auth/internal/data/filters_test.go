@@ -32,3 +32,99 @@ func TestValidateFilters(t *testing.T) {
 		})
 	}
 }
+
+func TestSortColumn(t *testing.T) {
+	tests := []struct {
+		name            string
+		filters         Filters
+		expectedSortVal string
+		expectedPanic   bool
+	}{
+		{"A valid sort ascending column", Filters{1, 20, "name", []string{"name"}}, "name", false},
+		{"A valid sort descending column", Filters{1, 20, "-name", []string{"-name"}}, "name", false},
+		{"An invalid sort column", Filters{1, 20, "name", []string{"email"}}, "", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+
+				if !tc.expectedPanic && r != nil {
+					t.Error("Didn't expect to panic but it did")
+				}
+			}()
+
+			result := tc.filters.sortColumn()
+			if result != tc.expectedSortVal {
+				t.Errorf("Expected '%v', got '%v'", tc.expectedSortVal, result)
+			}
+		})
+	}
+}
+
+func TestSortDirection(t *testing.T) {
+	tests := []struct {
+		name                  string
+		filters               Filters
+		expectedSortDirection string
+	}{
+		{"An ascending sort direction", Filters{1, 20, "name", []string{"name"}}, "ASC"},
+		{"A descending sort direction", Filters{1, 20, "-name", []string{"-name"}}, "DESC"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.filters.sortDirection()
+			if result != tc.expectedSortDirection {
+				t.Errorf("Expected '%v', got '%v'", tc.expectedSortDirection, result)
+			}
+		})
+	}
+}
+
+func TestLimit(t *testing.T) {
+	f := Filters{
+		Page:         2,
+		PageSize:     5,
+		Sort:         "name",
+		SortSafeList: []string{"name"},
+	}
+
+	result := f.limit()
+	if result != 5 {
+		t.Errorf("Expected '%v', got '%v'", 5, result)
+	}
+}
+
+func TestOffset(t *testing.T) {
+	tests := []struct {
+		name           string
+		filters        Filters
+		expectedOffser int
+	}{
+		{"Small offset", Filters{2, 20, "name", []string{"name"}}, 20},
+		{"Big offset", Filters{5, 20, "name", []string{"name"}}, 80},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.filters.offset()
+			if result != tc.expectedOffser {
+				t.Errorf("Expected '%v', got '%v'", tc.expectedOffser, result)
+			}
+		})
+	}
+}
+
+func TestCalculateMetadata(t *testing.T) {
+	result := calculateMetadata(183, 2, 20)
+
+	if result.CurrentPage != 2 ||
+		result.FirstPage != 1 ||
+		result.PageSize != 20 ||
+		result.LastPage != 10 ||
+		result.TotalRecords != 183 {
+		t.Errorf("Wrong results '%v'", result)
+	}
+}
