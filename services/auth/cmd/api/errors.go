@@ -28,8 +28,11 @@ func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.
 	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
 
-func (app *application) logError(_ *http.Request, err error) {
-	app.logger.Println(err)
+func (app *application) logError(r *http.Request, err error) {
+	app.logger.PrintError(err, map[string]string{
+		"request_method": r.Method,
+		"request_url":    r.URL.String(),
+	})
 }
 
 func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {

@@ -3,19 +3,19 @@ package main
 import (
 	"bytes"
 	"errors"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/betasve/go-commerce/services/auth/internal/jsonlog"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLogError(t *testing.T) {
 	rec := bytes.NewBufferString("")
 	app := application{
-		logger: log.New(rec, "pre ", log.LstdFlags),
+		logger: jsonlog.New(rec, jsonlog.LevelInfo),
 	}
 	req := httptest.NewRequest(
 		http.MethodGet,
@@ -62,7 +62,7 @@ func TestServerErrorResponse(t *testing.T) {
 	rec := bytes.NewBufferString("")
 	rr := httptest.NewRecorder()
 	app := application{
-		logger: log.New(rec, "pre ", log.LstdFlags),
+		logger: jsonlog.New(rec, jsonlog.LevelInfo),
 	}
 	req := httptest.NewRequest(
 		http.MethodGet,
