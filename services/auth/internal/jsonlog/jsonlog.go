@@ -18,6 +18,14 @@ const (
 	LevelOff
 )
 
+type logBody struct {
+	Level      string            `json:"level"`
+	Time       string            `json:"time"`
+	Message    string            `json:"message"`
+	Properties map[string]string `json:"properties,omitempty"`
+	Trace      string            `json:"trace,omitempty"`
+}
+
 func (l Level) String() string {
 	switch l {
 	case LevelInfo:
@@ -37,12 +45,14 @@ type Logger struct {
 	out      io.Writer
 	minLevel Level
 	mu       sync.Mutex
+	exitFn   func(code int)
 }
 
 func New(out io.Writer, minLevel Level) *Logger {
 	return &Logger{
 		out:      out,
 		minLevel: minLevel,
+		exitFn:   os.Exit,
 	}
 }
 
@@ -55,8 +65,8 @@ func (l *Logger) PrintError(err error, properties map[string]string) {
 }
 
 func (l *Logger) PrintFatal(err error, properties map[string]string) {
-	l.print(LevelInfo, err.Error(), properties)
-	os.Exit(1)
+	l.print(LevelFatal, err.Error(), properties)
+	l.exitFn(1)
 }
 
 func (l *Logger) print(level Level, message string, properties map[string]string) (int, error) {
@@ -64,13 +74,7 @@ func (l *Logger) print(level Level, message string, properties map[string]string
 		return 0, nil
 	}
 
-	aux := struct {
-		Level      string            `json:"level"`
-		Time       string            `json:"time"`
-		Message    string            `json:"message"`
-		Properties map[string]string `json:"properties,omitempty"`
-		Trace      string            `json:"trace,omitempty"`
-	}{
+	aux := &logBody{
 		Level:      level.String(),
 		Time:       time.Now().UTC().Format(time.RFC3339),
 		Message:    message,
