@@ -156,3 +156,22 @@ func TestFailedValidationRequest(t *testing.T) {
 		strings.TrimSpace(rr.Body.String()),
 	)
 }
+
+func TestRateLimitExceededResponse(t *testing.T) {
+	rr := httptest.NewRecorder()
+	app := application{}
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/test/url",
+		nil,
+	)
+
+	app.rateLimitExceededResponse(rr, req)
+
+	assert.Equal(t, http.StatusTooManyRequests, rr.Result().StatusCode)
+	assert.Equal(
+		t,
+		`{"error":"rate limit exceeded"}`,
+		strings.TrimSpace(rr.Body.String()),
+	)
+}
