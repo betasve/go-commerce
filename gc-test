@@ -23,6 +23,9 @@ case $action in
     id=$2
     curl -X DELETE "$base_url/users/$id"
     ;;
+  healthcheck)
+    curl -X GET "$base_url/healthcheck"
+    ;;
   list-users)
     curl -X GET "$base_url/users?$2"
     ;;

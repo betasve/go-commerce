@@ -5,10 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/betasve/go-commerce/services/auth/internal/data"
@@ -72,32 +69,12 @@ func main() {
 		models: data.NewModels(db),
 	}
 
-	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.port),
-		Handler:      app.routes(),
-		ErrorLog:     log.New(logger, "", 0),
-		IdleTimeout:  time.Minute,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
+	app.migrateDB(db)
+
+	err = app.serve()
+	if err != nil {
+		logger.PrintFatal(err, nil)
 	}
-
-	if cfg.db.migrate == "true" {
-		err := migrateDB(db)
-
-		if err != nil {
-			logger.PrintFatal(err, nil)
-		} else {
-			os.Exit(0)
-		}
-	}
-
-	logger.PrintInfo("starting server", map[string]string{
-		"env":  cfg.env,
-		"port": strconv.Itoa(cfg.port),
-	})
-
-	err = srv.ListenAndServe()
-	logger.PrintFatal(err, nil)
 }
 
 func openDB(cfg config) (*sql.DB, error) {
