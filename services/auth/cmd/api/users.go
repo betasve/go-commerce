@@ -23,12 +23,7 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	user := &data.User{
-		Name:     input.Name,
-		Email:    input.Email,
-		Password: input.Password,
-	}
-
+	user := data.NewUser(input.Name, input.Email, input.Password)
 	v := validator.New()
 
 	if data.ValidateUser(v, user); v.Invalid() {
@@ -39,11 +34,17 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 
 	err = app.models.Users.Insert(user)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrDuplicateEmail):
+			v.AddError("email", "a user with this email address already exists")
+			app.failedValidationResponse(w, r, v.Errors)
+
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
-	user.Password = "[FILTERED]"
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/v1/users/%d", user.ID))
 
@@ -107,7 +108,6 @@ func (app *application) showUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user.Password = "[FILTERED]"
 	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
@@ -152,7 +152,7 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	if input.Password != nil {
-		user.Password = *input.Password
+		user.Password.Set(*input.Password)
 	}
 
 	v := validator.New()
@@ -174,7 +174,6 @@ func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	user.Password = "[FILTERED]"
 	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)

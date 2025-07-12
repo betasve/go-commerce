@@ -16,7 +16,7 @@ base_url="http://localhost:4000/v1"
 case $action in
   create-user)
     email=$2
-    body="{\"email\":\"$2\",\"password\": \"pass123\",\"name\":\"Test User\"}"
+    body="{\"email\":\"$2\",\"password\": \"Password123!\",\"name\":\"Test User\"}"
     curl -X POST "$base_url/users" -H "Content-Type: application/json" -d "$body"
     ;;
   delete-user)

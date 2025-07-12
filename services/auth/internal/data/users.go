@@ -11,17 +11,61 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var (
+	ErrDuplicateEmail = errors.New("duplicated email")
+)
+
 type User struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
-	Password  string    `json:"password"`
+	Password  password  `json:"password"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type password struct {
+	plaintext *string
+	hash      []byte
+}
+
+func (p *password) Set(plaintextPassword string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
+	if err != nil {
+		return err
+	}
+
+	p.plaintext = &plaintextPassword
+	p.hash = hash
+
+	return nil
+}
+
+func (p *password) Matches(plaintextPassword string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintextPassword))
+	if err != nil {
+		switch {
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			return false, nil
+		default:
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
 type UserModel struct {
 	DB *sql.DB
+}
+
+func NewUser(name, email, pwd string) *User {
+	return &User{
+		Name:     name,
+		Email:    email,
+		Password: password{plaintext: &pwd, hash: []byte{}},
+	}
+
 }
 
 func (u UserModel) Insert(user *User) error {
@@ -31,7 +75,7 @@ func (u UserModel) Insert(user *User) error {
 		RETURNING id, created_at
 	`
 
-	hashedPassword, err := hashPassword(user.Password)
+	err := user.Password.Set(*user.Password.plaintext)
 	if err != nil {
 		return err
 	}
@@ -39,13 +83,23 @@ func (u UserModel) Insert(user *User) error {
 	args := []interface{}{
 		user.Name,
 		user.Email,
-		hashedPassword,
+		user.Password.hash,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return u.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreatedAt)
+	err = u.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreatedAt)
+	if err != nil {
+		switch {
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+			return ErrDuplicateEmail
+		default:
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (u UserModel) Get(id int64) (*User, error) {
@@ -54,7 +108,7 @@ func (u UserModel) Get(id int64) (*User, error) {
 	}
 
 	query := `
-		SELECT pg_sleep(10), id, created_at, updated_at, name, email
+		SELECT id, created_at, updated_at, name, email
 		FROM users
 		WHERE id = $1
 	`
@@ -65,12 +119,44 @@ func (u UserModel) Get(id int64) (*User, error) {
 	defer cancel()
 
 	err := u.DB.QueryRowContext(ctx, query, id).Scan(
-		&[]byte{},
 		&user.ID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&user.Name,
 		&user.Email,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+}
+
+func (u UserModel) GetByEmail(email string) (*User, error) {
+	query := `
+		SELECT id, created_at, updated_at, name, email, password
+		FROM users
+		WHERE email = $1
+	`
+
+	var user User
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := u.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
 	)
 
 	if err != nil {
@@ -142,8 +228,7 @@ func (u UserModel) Update(user *User) error {
 		WHERE id = $4 AND updated_at = $5
 		RETURNING updated_at
 	`
-
-	hashedPassword, err := hashPassword(user.Password)
+	err := user.Password.Set(*user.Password.plaintext)
 	if err != nil {
 		return err
 	}
@@ -151,7 +236,7 @@ func (u UserModel) Update(user *User) error {
 	args := []interface{}{
 		user.Name,
 		user.Email,
-		hashedPassword,
+		user.Password.hash,
 		user.ID,
 		user.UpdatedAt,
 	}
@@ -162,6 +247,8 @@ func (u UserModel) Update(user *User) error {
 	err = u.DB.QueryRowContext(ctx, query, args...).Scan(&user.UpdatedAt)
 	if err != nil {
 		switch {
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+			return ErrDuplicateEmail
 		case errors.Is(err, sql.ErrNoRows):
 			return ErrEditConflict
 		default:
@@ -226,7 +313,8 @@ func (u MockUserModel) Get(id int64) (*User, error) {
 	user.ID = 42
 	user.Name = "John Doe"
 	user.Email = "test_email@example.com"
-	user.Password = "TestPassword321"
+	plaintextPassword := "TestPassword321"
+	user.Password = password{&plaintextPassword, []byte{}}
 
 	t, err := time.Parse("2006-01-02 15:04:05", "2025-03-26 15:04:05")
 	if err != nil {
@@ -258,13 +346,28 @@ func (u MockUserModel) Delete(id int64) error {
 	return nil
 }
 
+func ValidateEmail(v *validator.Validator, email string) {
+	v.Check(email != "", "email", "can't be blank")
+	v.Check(
+		validator.Matches(
+			email,
+			validator.EmailRX,
+		),
+		"email",
+		"does not look like a valid email",
+	)
+}
+
+func ValidatePasswordPlaintext(v *validator.Validator, plaintext string) {
+	// TODO: Add requirements for stronger password
+	v.Check(plaintext != "", "password", "can't be blank")
+	v.Check(len(plaintext) >= 8, "password", "too short")
+	v.Check(len(plaintext) <= 72, "password", "too long")
+}
+
 func ValidateUser(v *validator.Validator, u *User) {
 	v.Check(u.Name != "", "name", "can't be blank")
 	v.Check(len(u.Name) > 5, "name", "can't be less than 5 characters")
-	v.Check(u.Email != "", "email", "can't be blank")
-	// TODO: Add requirements for stronger password
-	v.Check(u.Password != "", "password", "can't be blank")
-
 	v.Check(
 		validator.Matches(
 			u.Name,
@@ -274,27 +377,13 @@ func ValidateUser(v *validator.Validator, u *User) {
 		"does not look like a valid name",
 	)
 
-	v.Check(
-		validator.Matches(
-			u.Email,
-			validator.EmailRX,
-		),
-		"email",
-		"does not look like a valid email",
-	)
-}
+	ValidateEmail(v, u.Email)
 
-func hashPassword(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
+	if u.Password.plaintext != nil {
+		ValidatePasswordPlaintext(v, *u.Password.plaintext)
 	}
 
-	return string(hash), nil
-}
-
-func checkPassword(hashedPassword, password string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-
-	return err == nil
+	if u.Password.hash == nil {
+		panic("missing password hash")
+	}
 }
